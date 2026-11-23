@@ -1,5 +1,5 @@
 // SinoTalk Service Worker - Offline Caching (v6 — 8,050+ Chars + 6 Story Books)
-const CACHE_NAME = 'sinotalk-v8.2.0';
+const CACHE_NAME = 'sinotalk-v8.3.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

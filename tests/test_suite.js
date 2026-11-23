@@ -182,7 +182,7 @@ async function main() {
 
     const voiceSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'voiceEngine.ts'), 'utf8');
     assert(voiceSrc.includes('speakNatural'), 'voiceEngine.ts must export speakNatural');
-    assert(voiceSrc.includes('zh_male_chunhou'), 'voiceEngine.ts must include genuine studio Male Mandarin voice');
+    assert(voiceSrc.includes('zh-CN-YunjianNeural'), 'voiceEngine.ts must include genuine Microsoft Neural Male Mandarin voice');
 
     const writerSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'ui', 'HanziStrokeWriter.tsx'), 'utf8');
     assert(writerSrc.includes('HanziWriter'), 'HanziStrokeWriter.tsx must integrate hanzi-writer');
@@ -208,38 +208,47 @@ async function main() {
     assert(radSrc.includes('id: 50'), 'radicalsData.ts must contain all 50 essential radicals');
   });
 
-  // Test 14: V8.2 Release Consistency — Rock-Solid Male-Only Multi-Layer Audio (HTMLAudio + WebAudio + Android Native MediaPlayer), Byte-Safe Chunks, Clean index.html & Visible Error Toasts
-  runTest('V8.2 Upgrades: 8.2.0 versioning, Male-Only Multi-Layer Voice, UTF-8 Byte Chunks, Android Native MediaPlayer, Electron Autoplay & Clean index.html', () => {
+  // Test 14: V8.3 Release Consistency — Microsoft Bing Neural Male Voice (Chinese + Egyptian Arabic), Full Smart Quick Search & A11y Polish
+  runTest('V8.3 Upgrades: 8.3.0 versioning, Bing Neural Male Chinese & Arabic TTS across Android/Electron/Web, Smart Quick Search with ALL Meanings & A11y', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-    assert.strictEqual(pkg.version, '8.2.0', 'package.json version must be 8.2.0');
+    assert.strictEqual(pkg.version, '8.3.0', 'package.json version must be 8.3.0');
     const nav = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'layout', 'Navbar.tsx'), 'utf8');
     assert(nav.includes('V8'), 'Navbar must show V8 badge');
     const voice = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'voiceEngine.ts'), 'utf8');
     assert(
-      voice.includes('BV002_streaming') &&
-        voice.includes('zh_male_zhubo') &&
+      voice.includes('zh-CN-YunjianNeural') &&
+        voice.includes('zh-CN-YunxiNeural') &&
+        voice.includes('zh-CN-YunyangNeural') &&
+        voice.includes('ar-EG-ShakirNeural') &&
         voice.includes('FEMALE_VOICE_BLACKLIST') &&
         voice.includes('primeAudioEngine') &&
-        voice.includes('TextEncoder') &&
         voice.includes('SinoNativeAudio') &&
         voice.includes("category: 'playback'") &&
         voice.includes('diagnoseVoiceEngine') &&
-        voice.includes('warmUpOsVoices') &&
         !voice.includes('SILENT_WAV'),
-      'voiceEngine must implement V8.2 byte-safe multi-layer male audio with zero SILENT_WAV and playback category'
+      'voiceEngine must implement V8.3 Microsoft Bing Neural Male Chinese & Egyptian Arabic voices with zero female fallback'
     );
     const bridge = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'platformBridge.ts'), 'utf8');
-    assert(bridge.includes('toast.error'), 'platformBridge must surface audio playback errors via toast instead of silent failure');
+    assert(bridge.includes('toast.error'), 'platformBridge must surface audio playback errors via toast');
     const mainJava = fs.readFileSync(path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'java', 'com', 'sinotalk', 'app', 'MainActivity.java'), 'utf8');
     assert(
       mainJava.includes('setMediaPlaybackRequiresUserGesture(false)') &&
         mainJava.includes('SinoNativeAudio') &&
         mainJava.includes('MediaPlayer') &&
-        mainJava.includes('USAGE_MEDIA'),
-      'MainActivity.java must expose SinoNativeAudio MediaPlayer + unblocked WebView audio'
+        mainJava.includes('USAGE_MEDIA') &&
+        mainJava.includes('fetchBingMaleMp3Async') &&
+        mainJava.includes('bing.com/tfettts'),
+      'MainActivity.java must expose SinoNativeAudio MediaPlayer + Bing Neural Male TTS native fetch'
     );
     const electronMain = fs.readFileSync(path.join(__dirname, '..', 'electron', 'main.cjs'), 'utf8');
-    assert(electronMain.includes('autoplay-policy') && electronMain.includes('no-user-gesture-required'), 'electron/main.cjs must allow autoplay without gesture expiry');
+    assert(
+      electronMain.includes('autoplay-policy') &&
+        electronMain.includes('no-user-gesture-required') &&
+        electronMain.includes('bing.com/tfettts'),
+      'electron/main.cjs must allow autoplay and fetch Bing Neural Male TTS from main process'
+    );
+    const serverIdx = fs.readFileSync(path.join(__dirname, '..', 'server', 'index.js'), 'utf8');
+    assert(serverIdx.includes('/api/tts') && serverIdx.includes('bing.com/tfettts'), 'server/index.js must provide /api/tts Bing Neural Male proxy');
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     assert(
       html.includes("document.documentElement.classList.add('dark')") &&
@@ -247,22 +256,27 @@ async function main() {
         html.includes('Capacitor'),
       'index.html must have valid Dark Mode pre-paint script and skip SW on Capacitor native'
     );
-    const trans = fs.readFileSync(path.join(__dirname, '..', 'src', 'features', 'translator', 'SmartTranslator.tsx'), 'utf8');
+    const dash = fs.readFileSync(path.join(__dirname, '..', 'src', 'features', 'dashboard', 'Dashboard.tsx'), 'utf8');
     assert(
-      trans.includes('primeAudioEngine') &&
-        trans.includes("direction === 'zh-ar'") &&
-        trans.includes('autoSpeak') &&
-        trans.includes('[overflow-wrap:anywhere]') &&
-        trans.includes('overflow-hidden'),
-      'SmartTranslator must prime audio before async translation, handle zh-ar direction, and prevent overflow'
+      dash.includes('all_meanings') &&
+        dash.includes('HanziStrokeWriter') &&
+        dash.includes('getLocalSuggestions') &&
+        dash.includes('translated_arabic') &&
+        dash.includes('primeAudioEngine') &&
+        !dash.includes('4,050 رمز'),
+      'Dashboard Quick Search must act like Smart Translator with ALL meanings, dictionary card, stroke writer, suggestions & audio'
     );
+    const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'App.tsx'), 'utf8');
+    assert(appSrc.includes('characters={characters}') && appSrc.includes('<Dashboard'), 'App.tsx must pass dictionary characters to Dashboard');
+    const cmdPal = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'ui', 'CommandPalette.tsx'), 'utf8');
+    assert(cmdPal.includes('8,050 رمز') && cmdPal.includes('all_meanings'), 'CommandPalette must show 8,050 chars and full meanings');
     const settings = fs.readFileSync(path.join(__dirname, '..', 'src', 'features', 'settings', 'SettingsView.tsx'), 'utf8');
     assert(
-      settings.includes('SinoTalk v8.2.0') &&
+      settings.includes('SinoTalk v8.3.0') &&
         settings.includes('diagnoseVoiceEngine') &&
-        settings.includes('zh_male_zhubo') &&
+        settings.includes('zh-CN-YunjianNeural') &&
         !settings.includes('صوت أنثى'),
-      'SettingsView must display SinoTalk v8.2.0, zh_male_zhubo, live audio diagnostics, and zero female voice option'
+      'SettingsView must display SinoTalk v8.3.0, Bing Neural Male voices, live audio diagnostics, and zero female option'
     );
   });
 
@@ -294,7 +308,7 @@ async function main() {
   });
 
   console.log('\n========================================================');
-  console.log(`🏁 Test Results: ${passed} Passed, 0 Failed`.replace('0 Failed', `${failed} Failed`));
+  console.log(`🏁 Test Results: ${passed} Passed, ${failed} Failed`);
   console.log('========================================================');
 
   if (failed > 0) {

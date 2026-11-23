@@ -62,13 +62,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setMaleSpeaker(speaker);
     setMaleSpeakerState(speaker);
     toast.success(
-      speaker === 'BV002_streaming'
-        ? 'تم اختيار صوت المذيع الرجل الواضح (الافتراضي)'
-        : speaker === 'zh_male_zhubo'
-          ? 'تم اختيار صوت مذيع الأخبار الرجل (Zhubo)'
-          : speaker === 'zh_male_chunhou'
-            ? 'تم اختيار صوت الرجل العميق (Chunhou)'
-            : 'تم اختيار صوت الرجل السلس (Xiaoming)'
+      speaker === 'zh-CN-YunjianNeural'
+        ? 'تم اختيار صوت الرجل العميق الواضح (Yunjian Neural — الافتراضي)'
+        : speaker === 'zh-CN-YunxiNeural'
+          ? 'تم اختيار صوت الشاب الصيني الطبيعي (Yunxi Neural)'
+          : 'تم اختيار صوت مذيع الأخبار الرسمي (Yunyang Neural)'
     );
   };
 
@@ -210,25 +208,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-bold text-navy-900 dark:text-white flex items-center gap-2">
             <Volume2 className="w-4 h-4 text-[#C2410C] dark:text-[#FB923C]" />
-            <span>إعدادات النطق الصوتي (V8.2 — صوت الرجل الاستوديو):</span>
+            <span>إعدادات النطق الصوتي (V8.3 — Microsoft Neural صوت رجل صيني وعربي):</span>
           </h2>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleRunVoiceDiagnostic}
               disabled={diagRunning}
-              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-navy-800 hover:bg-slate-200 dark:hover:bg-navy-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-60"
+              className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-navy-800 hover:bg-slate-200 dark:hover:bg-navy-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C]"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${diagRunning ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${diagRunning ? 'animate-spin' : ''}`} aria-hidden="true" />
               <span>{diagRunning ? 'جاري الفحص...' : 'اختبار وتشخيص الصوت'}</span>
             </button>
             <button
               type="button"
-              onClick={() => nativeSpeak({ text: '你好，欢迎使用SinoTalk！', lang: 'zh-CN', rate: settings.speechSpeed })}
-              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-[#C2410C] hover:bg-[#9A3412] text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+              onClick={() => nativeSpeak({ text: '你好！欢迎使用中文翻译系统。', lang: 'zh-CN', rate: settings.speechSpeed })}
+              className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-[#C2410C] hover:bg-[#9A3412] text-white text-xs font-bold flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#C2410C]"
             >
-              <Volume2 className="w-3.5 h-3.5" />
-              <span>تجربة الصوت الصيني</span>
+              <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>تجربة صيني (رجل)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => nativeSpeak({ text: 'أهلاً بك في تطبيق سينوتوك للترجمة الذكية بصوت الرجل المصري الواضح.', lang: 'ar-EG', rate: settings.speechSpeed })}
+              className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-600"
+            >
+              <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>تجربة عربي (رجل)</span>
             </button>
           </div>
         </div>
@@ -299,43 +305,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="flex flex-wrap items-center gap-1.5 shrink-0">
             <button
               type="button"
-              onClick={() => handleSpeakerChange('BV002_streaming')}
-              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${maleSpeaker === 'BV002_streaming'
+              onClick={() => handleSpeakerChange('zh-CN-YunjianNeural')}
+              className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C] ${maleSpeaker === 'zh-CN-YunjianNeural'
                   ? 'bg-[#C2410C] text-white'
                   : 'bg-white dark:bg-navy-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                 }`}
             >
-              مذيع رجل واضح
+              رجل عميق (Yunjian)
             </button>
             <button
               type="button"
-              onClick={() => handleSpeakerChange('zh_male_zhubo')}
-              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${maleSpeaker === 'zh_male_zhubo'
+              onClick={() => handleSpeakerChange('zh-CN-YunxiNeural')}
+              className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C] ${maleSpeaker === 'zh-CN-YunxiNeural'
                   ? 'bg-[#C2410C] text-white'
                   : 'bg-white dark:bg-navy-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                 }`}
             >
-              مذيع أخبار
+              رجل بكين طبيعي (Yunxi)
             </button>
             <button
               type="button"
-              onClick={() => handleSpeakerChange('zh_male_chunhou')}
-              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${maleSpeaker === 'zh_male_chunhou'
+              onClick={() => handleSpeakerChange('zh-CN-YunyangNeural')}
+              className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C2410C] ${maleSpeaker === 'zh-CN-YunyangNeural'
                   ? 'bg-[#C2410C] text-white'
                   : 'bg-white dark:bg-navy-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                 }`}
             >
-              رجل عميق
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSpeakerChange('zh_male_xiaoming')}
-              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${maleSpeaker === 'zh_male_xiaoming'
-                  ? 'bg-[#C2410C] text-white'
-                  : 'bg-white dark:bg-navy-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                }`}
-            >
-              رجل سلس
+              مذيع أخبار (Yunyang)
             </button>
           </div>
         </div>
@@ -454,7 +450,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           تعتمد منصة <strong>SinoTalk</strong> بنسبة 100% على تقنيات مجانية ومفتوحة المصدر بالكامل (Web Speech API, Tesseract.js OCR, CC-CEDICT, HSK 2.0 Lexicon, pinyin-pro, pdf-parse, mammoth). لا يتطلب التطبيق أي اشتراكات مدفوعة أو مفاتيح API إجبارية.
         </p>
         <p className="text-[11px] text-slate-400">
-          إصدار التطبيق: SinoTalk v8.2.0 (Standalone Production Architecture).
+          إصدار التطبيق: SinoTalk v8.3.0 (Standalone Production Architecture).
         </p>
       </div>
     </div>
