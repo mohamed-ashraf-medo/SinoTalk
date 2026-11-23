@@ -1,53 +1,95 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./logo.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0F172A" />
-    <meta name="description" content="SinoTalk (سينوتوك) - منصة الترجمة الاحترافية الذكية بين اللغتين العربية والصينية مع قاموس تفاعلي ونظام نطق وترجمة المستندات والصور" />
-    <link rel="manifest" href="./manifest.json" />
-    
-    <!-- Google Fonts (with graceful offline system fallbacks) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-    
-    <title>SinoTalk | سينوتوك - مترجمك الذكي بين العربية والصينية</title>
-  </head>
-  <body class="bg-[#F7F6F2] dark:bg-[#090D16] text-slate-900 dark:text-slate-100 font-arabic antialiased min-h-[100dvh] selection:bg-[#C2410C] selection:text-white transition-colors duration-200">
-    <div id="root">
-      <!-- Instant Branded Splash Screen (replaced automatically when React mounts) -->
-      <div id="sinotalk-boot-splash" style="min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#090D16;color:#F8FAFC;font-family:'Cairo',system-ui,sans-serif;padding:24px;text-align:center;">
-        <div style="width:72px;height:72px;border-radius:20px;overflow:hidden;border:2px solid rgba(234,88,12,0.45);box-shadow:0 12px 32px rgba(234,88,12,0.22);background:#0F172A;display:flex;align-items:center;justify-content:center;">
-          <img src="./logo.svg" alt="SinoTalk" style="width:100%;height:100%;object-fit:cover;" />
-        </div>
-        <div>
-          <div style="font-size:26px;font-weight:900;letter-spacing:-0.02em;">
-            Sino<span style="color:#FB923C;">Talk</span>
-            <span style="font-size:12px;background:rgba(234,88,12,0.18);color:#FB923C;padding:2px 8px;border-radius:999px;border:1px solid rgba(234,88,12,0.35);vertical-align:middle;margin-right:6px;">V3</span>
-          </div>
-          <div style="font-size:13px;color:#94A3B8;margin-top:4px;">جاري تجهيز المنصة والقاموس الصيني (4,050 رمز)...</div>
-        </div>
-        <div style="width:200px;height:5px;border-radius:999px;background:rgba(255,255,255,0.1);overflow:hidden;">
-          <div style="width:45%;height:100%;border-radius:999px;background:linear-gradient(90deg,#C2410C,#FB923C);animation:sinoSplashSlide 1.1s ease-in-out infinite alternate;"></div>
-        </div>
-        <style>
-          @keyframes sinoSplashSlide {
-            from { transform: translateX(120%); }
-            to { transform: translateX(-20%); }
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="./logo.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F172A" />
+  <meta name="description"
+    content="SinoTalk (سينوتوك) - منصة الترجمة الاحترافية الذكية بين اللغتين العربية والصينية مع قاموس تفاعلي ونظام نطق وترجمة المستندات والصور" />
+  <link rel="manifest" href="./manifest.json" />
+
+  <!-- Google Fonts (with graceful offline system fallbacks) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700;900&display=swap"
+    rel="stylesheet">
+
+  <title>SinoTalk | سينوتوك - مترجمك الذكي بين العربية والصينية</title>
+  <script>
+    // Apply saved Dark/Light theme before first paint to prevent flash and keep Dark Mode persistent
+    (function () {
+      try {
+        var raw = localStorage.getItem('sinotalk_ui_prefs_v1');
+        if (raw) {
+          var prefs = JSON.parse(raw);
+          if (prefs && prefs.theme === 'dark') {
+            document.documentElement.classList.add('dark');
           }
-        </style>
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+
+<body
+  class="bg-[#F7F6F2] dark:bg-[#090D16] text-slate-900 dark:text-slate-100 font-arabic antialiased min-h-[100dvh] selection:bg-[#C2410C] selection:text-white transition-colors duration-200">
+  <div id="root">
+    <!-- Instant Branded Splash Screen (replaced automatically when React mounts) -->
+    <div id="sinotalk-boot-splash"
+      style="min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#090D16;color:#F8FAFC;font-family:'Cairo',system-ui,sans-serif;padding:24px;text-align:center;">
+      <div
+        style="width:72px;height:72px;border-radius:20px;overflow:hidden;border:2px solid rgba(234,88,12,0.45);box-shadow:0 12px 32px rgba(234,88,12,0.22);background:#0F172A;display:flex;align-items:center;justify-content:center;">
+        <img src="./logo.svg" alt="SinoTalk" style="width:100%;height:100%;object-fit:cover;" />
       </div>
+      <div>
+        <div style="font-size:26px;font-weight:900;letter-spacing:-0.02em;">
+          Sino<span style="color:#FB923C;">Talk</span>
+          <span
+            style="font-size:12px;background:rgba(234,88,12,0.18);color:#FB923C;padding:2px 8px;border-radius:999px;border:1px solid rgba(234,88,12,0.35);vertical-align:middle;margin-right:6px;">V8</span>
+        </div>
+        <div style="font-size:13px;color:#94A3B8;margin-top:4px;">جاري تجهيز المنصة والقاموس الصيني (8,050 رمز)...</div>
+      </div>
+      <div style="width:200px;height:5px;border-radius:999px;background:rgba(255,255,255,0.1);overflow:hidden;">
+        <div
+          style="width:45%;height:100%;border-radius:999px;background:linear-gradient(90deg,#C2410C,#FB923C);animation:sinoSplashSlide 1.1s ease-in-out infinite alternate;">
+        </div>
+      </div>
+      <style>
+        @keyframes sinoSplashSlide {
+          from {
+            transform: translateX(120%);
+          }
+
+          to {
+            transform: translateX(-20%);
+          }
+        }
+      </style>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
-    <script>
-      // Register Service Worker for Web PWA only (skip under Electron file:// or Capacitor native)
-      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').catch(() => {});
+  </div>
+  <script type="module" src="/src/main.tsx"></script>
+  <script>
+    // Register Service Worker for Web PWA only (skip under Electron file:// and Capacitor native Android!)
+    (function () {
+      var isNativeCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+      if (!('serviceWorker' in navigator)) return;
+      if (isNativeCapacitor) {
+        // Unregister any stale Service Worker previously installed inside Android WebView
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (reg) { reg.unregister().catch(function () {}); });
+        }).catch(function () {});
+        return;
+      }
+      if (location.protocol === 'https:' || location.hostname === 'localhost') {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('./sw.js').catch(function () {});
         });
       }
-    </script>
-  </body>
+    })();
+  </script>
+</body>
+
 </html>
