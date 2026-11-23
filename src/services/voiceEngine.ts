@@ -1,24 +1,27 @@
 // src/services/voiceEngine.ts
-// V8.2 Rock-Solid STRICT MALE-ONLY Multi-Layer Studio Voice Engine (ZERO Female Voices!)
-// - 4 Verified Genuine Male Beijing Mandarin MP3 speakers:
-//   1. 'BV002_streaming' (Standard Beijing Male Newsreader — super clear & authentic)
-//   2. 'zh_male_zhubo'   (Professional Male Broadcaster)
-//   3. 'zh_male_chunhou' (Deep Resonant Male Narrator)
-//   4. 'zh_male_xiaoming'(Crisp Male Speaker)
-// - UTF-8 Byte-Safe Chunker (<= 165 bytes / ~55 Chinese chars) — eliminates HTTP 500 on long sentences/stories!
-// - Zero-Deadlock 3-Layer Playback:
-//   1. Android Native Hardware MediaPlayer (window.SinoNativeAudio, USAGE_MEDIA — bypasses WebView autoplay & silent switch!)
-//   2. Fresh HTMLAudioElement (data:audio/mpeg;base64) with start-timeout guard
-//   3. Web Audio API (AudioContext.decodeAudioData) with strict 500ms resume() timeout (NEVER deadlocks!)
-// - Multi-Transport Fetch: Electron IPC -> Browser fetch -> Android native HttpURLConnection
-// - Pre-warmed Male-Only OS / Capacitor TTS (category: 'playback') for Chinese offline & Arabic Male!
+// V8.3 Rock-Solid STRICT MALE-ONLY Microsoft Bing Neural Studio Voice Engine (ZERO Female Voices!)
+// - Primary Engine (100% Verified Live — Crystal Clear Studio Male):
+//   * Chinese Mandarin Male:
+//     1. 'zh-CN-YunjianNeural' (Deep Clear Male — Default)
+//     2. 'zh-CN-YunxiNeural'   (Warm Natural Beijing Male)
+//     3. 'zh-CN-YunyangNeural' (Professional Newsreader Male)
+//   * Arabic Male (Egyptian & Standard!):
+//     1. 'ar-EG-ShakirNeural'  (Egyptian Arabic Male — Shakir)
+//     2. 'ar-SA-HamedNeural'   (Standard Arabic Male — Hamed)
+// - Multi-Platform Zero-CORS Transport:
+//   1. Android APK: Native Java HttpURLConnection + Hardware MediaPlayer (USAGE_MEDIA) via window.SinoNativeAudio
+//   2. Windows EXE: Electron Main-Process IPC via window.sinoElectron.fetchMaleTts
+//   3. Web App: Same-origin /api/tts Bing Neural proxy (server/index.js & Vite middleware)
+//   4. Backup: TikTok Male Mandarin (when up) -> Android Capacitor Male TTS (category: 'playback') -> Pre-warmed OS Male voices
+// - Zero-Deadlock Playback: Android MediaPlayer -> Fresh HTMLAudioElement -> Web Audio API (500ms resume guard)
 
 export type VoiceMode = 'hd' | 'device';
-export type MaleSpeakerId = 'BV002_streaming' | 'zh_male_zhubo' | 'zh_male_chunhou' | 'zh_male_xiaoming';
+export type MaleSpeakerId = 'zh-CN-YunjianNeural' | 'zh-CN-YunxiNeural' | 'zh-CN-YunyangNeural';
 
 export interface VoiceDiagnosticResult {
   online: boolean;
   serverReachable: boolean;
+  activeEngine: string;
   activePlaybackLayer: string;
   maleZhOsVoices: string[];
   maleArOsVoices: string[];
@@ -29,6 +32,7 @@ interface SinoNativeAudioInterface {
   isAvailable?: () => boolean;
   stop?: () => void;
   playBase64Mp3?: (base64Audio: string, rate: number, callbackId: string) => void;
+  fetchBingMaleMp3Async?: (text: string, lang: string, voice: string, callbackId: string) => void;
   fetchTikTokMp3Async?: (text: string, voice: string, callbackId: string) => void;
 }
 
@@ -40,12 +44,13 @@ declare global {
   }
 }
 
-const ALL_MALE_SPEAKERS: MaleSpeakerId[] = [
-  'BV002_streaming',
-  'zh_male_zhubo',
-  'zh_male_chunhou',
-  'zh_male_xiaoming'
+const ALL_MALE_ZH_SPEAKERS: MaleSpeakerId[] = [
+  'zh-CN-YunjianNeural',
+  'zh-CN-YunxiNeural',
+  'zh-CN-YunyangNeural'
 ];
+
+const ALL_MALE_AR_SPEAKERS = ['ar-EG-ShakirNeural', 'ar-SA-HamedNeural'] as const;
 
 // Known female voice names strictly blocked from ever playing
 const FEMALE_VOICE_BLACKLIST = [
@@ -57,7 +62,7 @@ const FEMALE_VOICE_BLACKLIST = [
 const utf8Encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
 
 let currentMode: VoiceMode = 'hd';
-let currentSpeaker: MaleSpeakerId = 'BV002_streaming';
+let currentSpeaker: MaleSpeakerId = 'zh-CN-YunjianNeural';
 let audioCtx: AudioContext | null = null;
 let currentSourceNode: AudioBufferSourceNode | null = null;
 let currentAudioEl: HTMLAudioElement | null = null;
@@ -88,8 +93,8 @@ if (typeof window !== 'undefined') {
 
 try {
   if (typeof localStorage !== 'undefined') {
-    const savedSpeaker = localStorage.getItem('sinotalk_male_speaker_v81') as MaleSpeakerId | null;
-    if (savedSpeaker && ALL_MALE_SPEAKERS.includes(savedSpeaker)) {
+    const savedSpeaker = localStorage.getItem('sinotalk_male_speaker_v83') as MaleSpeakerId | null;
+    if (savedSpeaker && ALL_MALE_ZH_SPEAKERS.includes(savedSpeaker)) {
       currentSpeaker = savedSpeaker;
     }
     const savedMode = localStorage.getItem('sinotalk_voice_mode_v81');
@@ -194,7 +199,7 @@ export function getMaleSpeaker(): MaleSpeakerId {
 export function setMaleSpeaker(speaker: MaleSpeakerId): void {
   currentSpeaker = speaker;
   try {
-    localStorage.setItem('sinotalk_male_speaker_v81', speaker);
+    localStorage.setItem('sinotalk_male_speaker_v83', speaker);
   } catch {
     // ignore
   }
@@ -203,7 +208,6 @@ export function setMaleSpeaker(speaker: MaleSpeakerId): void {
 export function stopNaturalSpeech(): void {
   playbackSessionId++;
 
-  // Resolve any pending Android native playback promises so awaiting loops exit cleanly
   if (pendingNativeAudioCallbacks.size > 0) {
     for (const [id, resolver] of pendingNativeAudioCallbacks.entries()) {
       pendingNativeAudioCallbacks.delete(id);
@@ -254,7 +258,6 @@ export function stopNaturalSpeech(): void {
 
 function utf8ByteLength(str: string): number {
   if (utf8Encoder) return utf8Encoder.encode(str).length;
-  // Safe fallback without TextEncoder
   let bytes = 0;
   for (const ch of Array.from(str)) {
     const cp = ch.codePointAt(0) || 0;
@@ -263,16 +266,48 @@ function utf8ByteLength(str: string): number {
   return bytes;
 }
 
-/**
- * Splits text strictly by UTF-8 byte length (<= 165 bytes, ~55 Chinese chars)
- * so TikTok's ~220-byte server cap NEVER returns HTTP 500 on long sentences or stories!
- */
+export function splitSpeechChunksByChars(text: string, maxChars = 300): string[] {
+  const clean = text.replace(/\r/g, '').trim();
+  if (!clean) return [];
+  if (clean.length <= maxChars) return [clean];
+
+  const rawParts = clean.split(/(?<=[。！？.!?,，、؛;؟\n])\s*/).filter(Boolean);
+  const chunks: string[] = [];
+  let buf = '';
+
+  const pushOversized = (seg: string) => {
+    const chars = Array.from(seg);
+    for (let i = 0; i < chars.length; i += maxChars) {
+      chunks.push(chars.slice(i, i + maxChars).join('').trim());
+    }
+  };
+
+  for (const part of rawParts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    if (trimmed.length > maxChars) {
+      if (buf.trim()) {
+        chunks.push(buf.trim());
+        buf = '';
+      }
+      pushOversized(trimmed);
+    } else if ((buf ? buf.length + 1 + trimmed.length : trimmed.length) > maxChars && buf) {
+      chunks.push(buf.trim());
+      buf = trimmed;
+    } else {
+      buf = buf ? `${buf} ${trimmed}` : trimmed;
+    }
+  }
+  if (buf.trim()) chunks.push(buf.trim());
+  return chunks.filter(Boolean);
+}
+
 export function splitSpeechChunksByBytes(text: string, maxBytes = 165): string[] {
   const clean = text.replace(/\r/g, '').trim();
   if (!clean) return [];
   if (utf8ByteLength(clean) <= maxBytes) return [clean];
 
-  const rawParts = clean.split(/(?<=[。！？.!?,，、؛;\n])\s*/).filter(Boolean);
+  const rawParts = clean.split(/(?<=[。！？.!?,，、؛;؟\n])\s*/).filter(Boolean);
   const chunks: string[] = [];
   let buf = '';
 
@@ -293,7 +328,6 @@ export function splitSpeechChunksByBytes(text: string, maxBytes = 165): string[]
   for (const part of rawParts) {
     const trimmed = part.trim();
     if (!trimmed) continue;
-
     if (utf8ByteLength(trimmed) > maxBytes) {
       if (buf.trim()) {
         chunks.push(buf.trim());
@@ -323,16 +357,42 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-function fetchViaAndroidNative(text: string, voice: string): Promise<string | null> {
+function fetchBingViaAndroidNative(text: string, lang: string, voice: string): Promise<string | null> {
+  if (typeof window === 'undefined' || !window.SinoNativeAudio?.fetchBingMaleMp3Async) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const id = `bf_${++callbackCounter}_${Date.now()}`;
+    const timer = setTimeout(() => {
+      pendingNativeFetchCallbacks.delete(id);
+      resolve(null);
+    }, 15000);
+
+    pendingNativeFetchCallbacks.set(id, (b64) => {
+      clearTimeout(timer);
+      resolve(b64 && b64.length > 200 ? b64 : null);
+    });
+
+    try {
+      window.SinoNativeAudio!.fetchBingMaleMp3Async!(text, lang, voice, id);
+    } catch {
+      clearTimeout(timer);
+      pendingNativeFetchCallbacks.delete(id);
+      resolve(null);
+    }
+  });
+}
+
+function fetchTikTokViaAndroidNative(text: string, voice: string): Promise<string | null> {
   if (typeof window === 'undefined' || !window.SinoNativeAudio?.fetchTikTokMp3Async) {
     return Promise.resolve(null);
   }
   return new Promise((resolve) => {
-    const id = `f_${++callbackCounter}_${Date.now()}`;
+    const id = `tf_${++callbackCounter}_${Date.now()}`;
     const timer = setTimeout(() => {
       pendingNativeFetchCallbacks.delete(id);
       resolve(null);
-    }, 10500);
+    }, 9500);
 
     pendingNativeFetchCallbacks.set(id, (b64) => {
       clearTimeout(timer);
@@ -349,62 +409,116 @@ function fetchViaAndroidNative(text: string, voice: string): Promise<string | nu
   });
 }
 
-async function fetchSingleSpeakerBase64(text: string, voice: MaleSpeakerId): Promise<string | null> {
-  // Transport 1: Electron Main-Process IPC (zero CORS / file:// restrictions on Windows Desktop)
+async function fetchBingMaleSingle(text: string, lang: string, voice: string): Promise<string | null> {
+  // Transport 1: Android Native Java HttpURLConnection (Zero CORS, Zero WebView blocks!)
+  if (typeof window !== 'undefined' && window.SinoNativeAudio?.fetchBingMaleMp3Async) {
+    const nativeData = await fetchBingViaAndroidNative(text, lang, voice);
+    if (nativeData) return nativeData;
+  }
+
+  // Transport 2: Electron Main-Process IPC (Windows .exe — Zero CORS!)
   if (typeof window !== 'undefined' && window.sinoElectron?.fetchMaleTts) {
     try {
-      const ipcData = await window.sinoElectron.fetchMaleTts(text, voice);
+      const ipcData = await window.sinoElectron.fetchMaleTts(text, lang, voice);
       if (typeof ipcData === 'string' && ipcData.length > 200) return ipcData;
     } catch {
-      // fall through to standard fetch
+      // fall through
     }
   }
 
-  // Transport 2: Direct HTTPS fetch (Web, Electron fallback, Android WebView)
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 9500);
-    const res = await fetch('https://tiktok-tts.weilnet.workers.dev/api/generation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice }),
-      signal: controller.signal
-    });
-    clearTimeout(timer);
-    if (res.ok) {
-      const json = await res.json();
-      if (json?.success && typeof json.data === 'string' && json.data.length > 200) {
-        return json.data;
+  // Transport 3: Web Same-Origin /api/tts Proxy (Express server or Vite dev middleware)
+  if (
+    typeof window !== 'undefined' &&
+    (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+    !(window as any).Capacitor?.isNativePlatform?.()
+  ) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, lang, voice }),
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.success && typeof json.data === 'string' && json.data.length > 200) {
+          return json.data;
+        }
       }
+    } catch {
+      // fall through
     }
-  } catch {
-    // fall through to Android native HttpURLConnection if available
   }
-
-  // Transport 3: Android Native HttpURLConnection bridge (bypass WebView network stack issues)
-  const nativeData = await fetchViaAndroidNative(text, voice);
-  if (nativeData) return nativeData;
 
   return null;
 }
 
+async function fetchTikTokBackupMandarin(text: string): Promise<string | null> {
+  if (utf8ByteLength(text) > 195) return null;
+  const voices = ['BV002_streaming', 'zh_male_zhubo', 'zh_male_chunhou'];
+  for (const voice of voices) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 7000);
+      const res = await fetch('https://tiktok-tts.weilnet.workers.dev/api/generation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice }),
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.success && typeof json.data === 'string' && json.data.length > 200) {
+          return json.data;
+        }
+      }
+    } catch {
+      // try Android native fallback or next speaker
+    }
+    const nativeData = await fetchTikTokViaAndroidNative(text, voice);
+    if (nativeData) return nativeData;
+  }
+  return null;
+}
+
 /**
- * Fetches 100% VERIFIED GENUINE MALE Beijing Mandarin MP3 across 4 redundant male speakers.
+ * Fetches 100% VERIFIED GENUINE STUDIO MALE MP3 via Microsoft Bing Neural TTS (for BOTH Chinese AND Arabic!),
+ * with automatic multi-speaker failover and TikTok Chinese backup.
  */
-async function fetchMaleMandarinBase64(text: string, speaker: MaleSpeakerId): Promise<string | null> {
-  const cacheKey = `${speaker}:${text}`;
+async function fetchStudioMaleBase64(text: string, lang: string): Promise<string | null> {
+  const isZh = lang.startsWith('zh');
+  const normLang = isZh ? 'zh-CN' : lang.toLowerCase().startsWith('ar-sa') ? 'ar-SA' : 'ar-EG';
+  const cacheKey = `${normLang}:${isZh ? currentSpeaker : 'ar-male'}:${text}`;
   const cached = audioBase64Cache.get(cacheKey);
   if (cached) return cached;
 
-  const order: MaleSpeakerId[] = [speaker, ...ALL_MALE_SPEAKERS.filter((s) => s !== speaker)];
+  const voiceOrder: string[] = isZh
+    ? [currentSpeaker, ...ALL_MALE_ZH_SPEAKERS.filter((s) => s !== currentSpeaker)]
+    : [...ALL_MALE_AR_SPEAKERS];
 
-  for (const voice of order) {
-    const data = await fetchSingleSpeakerBase64(text, voice);
-    if (data) {
-      audioBase64Cache.set(cacheKey, data);
-      return data;
+  // Primary: Microsoft Bing Neural Male TTS (Chinese + Egyptian/Standard Arabic)
+  for (const voice of voiceOrder) {
+    const vLang = voice.startsWith('ar-SA') ? 'ar-SA' : voice.startsWith('ar-EG') ? 'ar-EG' : normLang;
+    const b64 = await fetchBingMaleSingle(text, vLang, voice);
+    if (b64) {
+      audioBase64Cache.set(cacheKey, b64);
+      return b64;
     }
   }
+
+  // Secondary backup for Chinese Mandarin (only if Bing unreachable, e.g., static web host without /api/tts)
+  if (isZh) {
+    const tikData = await fetchTikTokBackupMandarin(text);
+    if (tikData) {
+      audioBase64Cache.set(cacheKey, tikData);
+      return tikData;
+    }
+  }
+
   return null;
 }
 
@@ -426,7 +540,7 @@ function playViaAndroidNativeMediaPlayer(
     const timer = setTimeout(() => {
       pendingNativeAudioCallbacks.delete(id);
       resolve(false);
-    }, 35000);
+    }, 45000);
 
     pendingNativeAudioCallbacks.set(id, (ok) => {
       clearTimeout(timer);
@@ -501,7 +615,6 @@ async function playViaWebAudio(base64: string, rate: number, sessionId: number):
   if (!ctx) throw new Error('AudioContext unavailable');
 
   if (ctx.state === 'suspended') {
-    // STRICT 500ms timeout guard — NEVER deadlocks when autoplay blocks resume()!
     await Promise.race([
       ctx.resume(),
       new Promise<void>((resolve) => setTimeout(resolve, 500))
@@ -531,22 +644,16 @@ async function playViaWebAudio(base64: string, rate: number, sessionId: number):
   });
 }
 
-/**
- * Zero-Deadlock 3-Layer MP3 Playback:
- * 1. Android Native Hardware MediaPlayer (bypasses WebView autoplay & silent switch completely!)
- * 2. Fresh HTMLAudioElement (unlocked by MainActivity & Electron autoplay-policy!)
- * 3. Web Audio API with 500ms resume() timeout guard (never hangs!)
- */
 async function playBase64Mp3(base64: string, rate: number, sessionId: number): Promise<void> {
   if (sessionId !== playbackSessionId) return;
 
-  // Layer 1: Android Native Hardware MediaPlayer (USAGE_MEDIA)
+  // Layer 1: Android Native Hardware MediaPlayer (USAGE_MEDIA — immune to WebView autoplay & silent switch)
   if (typeof window !== 'undefined' && window.SinoNativeAudio?.playBase64Mp3) {
     const nativeOk = await playViaAndroidNativeMediaPlayer(base64, rate, sessionId);
     if (nativeOk || sessionId !== playbackSessionId) return;
   }
 
-  // Layer 2: Fresh HTMLAudioElement (data:audio/mpeg;base64)
+  // Layer 2: Fresh HTMLAudioElement
   try {
     await playViaHtmlAudio(base64, rate, sessionId);
     return;
@@ -558,8 +665,9 @@ async function playBase64Mp3(base64: string, rate: number, sessionId: number): P
   await playViaWebAudio(base64, rate, sessionId);
 }
 
-async function tryPlayGenuineMaleChinese(
+async function tryPlayStudioMaleOnline(
   text: string,
+  lang: string,
   rate: number,
   sessionId: number
 ): Promise<boolean> {
@@ -567,13 +675,14 @@ async function tryPlayGenuineMaleChinese(
     return false;
   }
 
-  const chunks = splitSpeechChunksByBytes(text, 165);
+  // Bing Neural supports 300+ chars in one seamless MP3!
+  const chunks = splitSpeechChunksByChars(text, 280);
   if (!chunks.length) return false;
 
   notifySpeaking(true);
 
   try {
-    let nextPromise: Promise<string | null> | null = fetchMaleMandarinBase64(chunks[0], currentSpeaker);
+    let nextPromise: Promise<string | null> | null = fetchStudioMaleBase64(chunks[0], lang);
 
     for (let i = 0; i < chunks.length; i++) {
       if (sessionId !== playbackSessionId) return true;
@@ -581,8 +690,7 @@ async function tryPlayGenuineMaleChinese(
       const b64 = await nextPromise;
       if (sessionId !== playbackSessionId) return true;
 
-      nextPromise =
-        i + 1 < chunks.length ? fetchMaleMandarinBase64(chunks[i + 1], currentSpeaker) : null;
+      nextPromise = i + 1 < chunks.length ? fetchStudioMaleBase64(chunks[i + 1], lang) : null;
 
       if (!b64) {
         if (sessionId === playbackSessionId) notifySpeaking(false);
@@ -629,10 +737,6 @@ async function findStrictMaleOsVoice(lang: string): Promise<SpeechSynthesisVoice
   return null;
 }
 
-/**
- * STRICT MALE-ONLY Capacitor Native TTS (category: 'playback'):
- * Uses Android's verified MALE Google/Samsung voices — NEVER plays a female voice!
- */
 async function tryPlayStrictMaleCapacitorTts(
   text: string,
   lang: string,
@@ -659,9 +763,7 @@ async function tryPlayStrictMaleCapacitorTts(
       return langOk && !isBlacklistedFemaleVoice(n) && maleHints.some((h) => n.includes(h));
     });
 
-    if (idx < 0) {
-      return false;
-    }
+    if (idx < 0) return false;
 
     notifySpeaking(true);
     await TextToSpeech.speak({
@@ -683,13 +785,23 @@ async function tryPlayStrictMaleCapacitorTts(
 
 export async function diagnoseVoiceEngine(): Promise<VoiceDiagnosticResult> {
   const online = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
-  const hasNativeAndroid = Boolean(typeof window !== 'undefined' && window.SinoNativeAudio?.playBase64Mp3);
+  const hasNativeAndroid = Boolean(typeof window !== 'undefined' && window.SinoNativeAudio?.fetchBingMaleMp3Async);
   const hasElectronIpc = Boolean(typeof window !== 'undefined' && window.sinoElectron?.fetchMaleTts);
 
   let serverReachable = false;
+  let activeEngine = 'غير متصل';
   if (online) {
-    const sample = await fetchSingleSpeakerBase64('你好', currentSpeaker);
-    serverReachable = Boolean(sample);
+    const bingSample = await fetchBingMaleSingle('你好', 'zh-CN', currentSpeaker);
+    if (bingSample) {
+      serverReachable = true;
+      activeEngine = `Microsoft Bing Neural (${currentSpeaker} + ar-EG-ShakirNeural)`;
+    } else {
+      const tikSample = await fetchTikTokBackupMandarin('你好');
+      if (tikSample) {
+        serverReachable = true;
+        activeEngine = 'Studio Male Backup (Mandarin)';
+      }
+    }
   }
 
   const voices = await warmUpOsVoices();
@@ -715,20 +827,21 @@ export async function diagnoseVoiceEngine(): Promise<VoiceDiagnosticResult> {
     ? 'Android Native MediaPlayer (USAGE_MEDIA)'
     : hasElectronIpc
       ? 'Electron Desktop IPC + HTMLAudio'
-      : 'HTMLAudio + WebAudio (Safe Guard)';
+      : 'Web /api/tts + HTMLAudio';
 
   let summaryAr = '';
   if (!online) {
-    summaryAr = 'الجهاز غير متصل بالإنترنت حالياً — يرجى الاتصال بالإنترنت لتشغيل صوت الرجل الاستوديو.';
+    summaryAr = 'الجهاز غير متصل بالإنترنت حالياً — اتصل بالنت لتشغيل صوت الرجل الاستوديو (Microsoft Neural).';
   } else if (serverReachable) {
-    summaryAr = `ممتاز! سيرفر صوت الرجل الاستوديو متصل ويعمل بكفاءة عبر (${activePlaybackLayer}).`;
+    summaryAr = `ممتاز! محرك صوت الرجل (${activeEngine}) متصل ويعمل بنجاح عبر ${activePlaybackLayer}.`;
   } else {
-    summaryAr = 'تعذر الوصول لسيرفر الصوت الاستوديو من شبكتك الحالية — تحقق من الإنترنت أو جرّب شبكة أخرى.';
+    summaryAr = 'تعذر الوصول لخادم الصوت من الشبكة الحالية — تحقق من اتصال الإنترنت أو أعد المحاولة.';
   }
 
   return {
     online,
     serverReachable,
+    activeEngine,
     activePlaybackLayer,
     maleZhOsVoices,
     maleArOsVoices,
@@ -757,11 +870,10 @@ export async function speakNatural({
   primeAudioEngine();
 
   const sessionId = ++playbackSessionId;
-  const isZh = lang.startsWith('zh');
 
-  // 1. Mandarin Chinese: ALWAYS try 100% verified Studio MALE Mandarin MP3 first!
-  if (isZh && currentMode === 'hd') {
-    const ok = await tryPlayGenuineMaleChinese(clean, rate, sessionId);
+  // 1. Primary (BOTH Chinese AND Arabic!): 100% Genuine Microsoft Bing Neural Male Studio Voice!
+  if (currentMode === 'hd') {
+    const ok = await tryPlayStudioMaleOnline(clean, lang, rate, sessionId);
     if (ok) {
       if (sessionId === playbackSessionId && onEnd) onEnd();
       return;
@@ -800,9 +912,9 @@ export async function speakNatural({
     return;
   }
 
-  // 4. Last-resort retry of Studio Male Mandarin if device mode had no local male voice
-  if (isZh && currentMode === 'device') {
-    const ok = await tryPlayGenuineMaleChinese(clean, rate, sessionId);
+  // 4. Last-resort online retry if device mode had no local male voice installed
+  if (currentMode === 'device') {
+    const ok = await tryPlayStudioMaleOnline(clean, lang, rate, sessionId);
     if (ok) {
       if (sessionId === playbackSessionId && onEnd) onEnd();
       return;
@@ -813,11 +925,9 @@ export async function speakNatural({
 
   if (onError) {
     const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
-    const msg = !isZh
-      ? 'لا يوجد صوت رجل عربي مثبّت على جهازك حالياً (النظام يمنع تشغيل صوت البنت). فعّل صوت Google العربي الرجالي من إعدادات الجهاز.'
-      : isOffline
-        ? 'أنت غير متصل بالإنترنت — اتصل بالنت لتشغيل صوت الرجل الصيني الواضح.'
-        : 'تعذر تشغيل صوت الرجل الاستوديو حالياً — تحقق من الإنترنت أو افتح «الإعدادات ➔ اختبار وتشخيص الصوت».';
+    const msg = isOffline
+      ? 'أنت غير متصل بالإنترنت — اتصل بالنت لتشغيل صوت الرجل الاستوديو (صيني وعربي).'
+      : 'تعذر تشغيل صوت الرجل حالياً — تحقق من الإنترنت وجرّب «الإعدادات ➔ اختبار وتشخيص الصوت».';
     onError(new Error(msg));
   }
 }

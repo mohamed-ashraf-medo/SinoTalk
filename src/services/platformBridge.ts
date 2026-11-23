@@ -17,7 +17,7 @@ declare global {
       minimize: () => void;
       maximize: () => void;
       close: () => void;
-      fetchMaleTts?: (text: string, voice: string) => Promise<string | null>;
+      fetchMaleTts?: (text: string, lang: string, voice: string) => Promise<string | null>;
       onQuickTranslate: (cb: (text: string) => void) => () => void;
     };
     Capacitor?: {

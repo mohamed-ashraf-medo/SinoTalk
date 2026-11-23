@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('sinoElectron', {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
-  fetchMaleTts: (text, voice) => ipcRenderer.invoke('tts-fetch-male', { text, voice }),
+  fetchMaleTts: (text, lang, voice) => ipcRenderer.invoke('tts-fetch-male', { text, lang, voice }),
   onQuickTranslate: (callback) => {
     const handler = (_event, text) => callback(text);
     ipcRenderer.on('quick-translate', handler);
